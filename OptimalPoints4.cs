@@ -1,23 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Cureos.Numerics;
-/* Date: 18-02-2017
+﻿/* Date: 18-02-2017
+ * Author: K. Korobchinskiy
  * Круги в круге 
  * countCircle ~ можно задавать количество степеней в ограничении x[i]^k = r[i]^k 
  * Исходные данные наборами кругов одинакового радиуса - l
+ * Добавить смещение в степенных ограничениях r[i]-sum{r[i]}/n
  ******************************** */
+using System;
+using Cureos.Numerics;
+
 namespace hs071_cs
 {
-  // Классы задач 
-  public enum Restriction
-  {
-    Power /*степенные ограничения*/,
-    Lineal /*линейные ограничения*/,
-    AlphaPower
-  }
-
   public class OptimalPoints4
   {
     public readonly int _n;
@@ -32,12 +24,14 @@ namespace hs071_cs
 
     public double[] X { get; private set; } // Для решателя массив х, в него входят все координаты и радиусы. Т.е. переменные
 
-    public readonly int count; // количество кругов //альтернативная задача => this.height = height;
+    public readonly int count; // количество кругов
     public double[] radius;
     private int[] _groupNumber; // указывает номер группы в котором находится круг
     private int _limitCount; // количество степеней в ограничении x[i]^k = r[i]^k
     private readonly int _groupCount;
     private readonly int[] _elemGroupCount;
+    private readonly double _tildaR;
+    private Random _rnd = new Random(); // для генерирования случайной начальной точки
 
     // Начальная точка - вычисляется программно на основе радиусов. Метод: FirstValue(r).
     // countCircle - степень в ограничениях 
@@ -47,9 +41,14 @@ namespace hs071_cs
       count = r.Length; // задаём количетво кругов
       _n = count * 3 + 1; // количество переменных в векторе 
       radius = new double[count];
+      double sumR = 0;
       int it = 0;
       foreach (var item in r)
+      {
         radius[it++] = item;
+        sumR += item;
+      }
+      _tildaR = sumR / count;
       X = new double[_n];
       // Если передаём исходные x и y, то инициализируем ими, иначе генерим
       if (x != null && y != null)
@@ -68,22 +67,29 @@ namespace hs071_cs
         // генеририруем R из массивов Х и У
         x = new double[count];
         y = new double[count];
-        double l = 0;
-        double d = 0.2;
+        
+        //double l = 0;
+        //double d = 0.2;
+        int coef = 1;
         for (int i = 0; i < count; ++i)
         {
-          
+          coef = (_rnd.NextDouble() > 0.5) ? 1 : -1;
+          X[2 * i] = sumR * _rnd.NextDouble() * coef;
+          X[2 * i + 1] = sumR * _rnd.NextDouble() * coef;
+          X[2 * count + i] = sumR * _rnd.NextDouble();
+          /*
           X[2 * i] = x[i] = l + r[i];
           l += 2 * r[i];
           X[2 * i + 1] = y[i] = d *= -1;
           X[2 * count + i] = r[i];
+          */
           /*
           X[2 * i] = 0;
           X[2 * i + 1] = 0;
           X[2 * count + i] = 0;
           */
         }
-        X[_n - 1] = l;
+        X[_n - 1] = sumR;
       }
       switch (_task)
       {
@@ -213,46 +219,6 @@ namespace hs071_cs
       } // switch (_task)
     } // End_Конструктор 
 
-    public double DiametrSum(double[] radius)
-    {
-      var sum = 0.0;
-      foreach (var rad in radius)
-      {
-        sum += 2 * rad;
-      }
-      return sum;
-    }
-
-    public double[] FirstValue(double[] r)
-    {
-      double[] x = new double[count * 3 + 1];
-      double l = 0;
-      double d = 0.2;
-      for (int i = 0; i < count; ++i)
-      {
-        x[2 * i] = l + r[i];
-        l += 2 * r[i];
-        x[2 * i + 1] = d *= -1;
-        //x[2 * count + i] = r[i];
-        x[2 * count + i] = 20;
-      }
-      x[_n - 1] = l;
-      return x;
-    }
-
-    // Инициализация значений всего массива _х
-    public double[] InitialValuesManually(double[] InitialValues)
-    {
-      double[] x = new double[count * 3 + 1];
-      for (int i = 0; i < count; ++i)
-      {
-        x[2 * i] = InitialValues[2 * i];
-        x[2 * i + 1] = InitialValues[2 * i + 1];
-        x[2 * count + i] = InitialValues[2 * count + i];
-      }
-      x[_n - 1] = InitialValues[_n - 1];
-      return x;
-    }
     public bool eval_f(int n, double[] x, bool new_x, out double obj_value)
     {
       obj_value = x[_n - 1];
@@ -268,35 +234,6 @@ namespace hs071_cs
       }
       grad_f[_n - 1] = 1;
       return true;
-    }
-
-    string DecToBase(int num_value, int base_value, int max_bit = 64)
-    {
-      var dec_base = 10;
-      var hexchars = new[] { 'A', 'B', 'C', 'D', 'E', 'F' };
-      var result = string.Empty;
-      var result_array = new int[max_bit];
-
-      for (/* nothing */; num_value > 0; num_value /= base_value)
-      {
-        int i = num_value % base_value;
-        result_array[--max_bit] = i;
-      }
-
-      for (int i = 0; i < result_array.Length; i++)
-      {
-        if (result_array[i] >= dec_base)
-        {
-          result += hexchars[(int)result_array[i] % dec_base].ToString();
-        }
-        else
-        {
-          result += result_array[i].ToString();
-        }
-      }
-
-      //result = result.TrimStart(new char[] {'0'});
-      return result;
     }
 
     public bool eval_g(int n, double[] x, bool new_x, int m, double[] g)
@@ -342,7 +279,7 @@ namespace hs071_cs
           g[kk] = 0;
           for (int i = 0; i < count; ++i)
           {
-            g[kk] += Math.Pow(x[2 * count + i],2);
+            g[kk] += Math.Pow(x[2 * count + i], 2);
             g[kk] -= Math.Pow(radius[i], 2);
           }
           kk++;
@@ -363,8 +300,8 @@ namespace hs071_cs
               {
                 if (k == _groupNumber[i])
                 {
-                  sumX += Math.Pow(x[2 * count + i], rank);
-                  sumVX += Math.Pow(radius[i], rank);
+                  sumX += Math.Pow(x[2 * count + i]-_tildaR, rank);
+                  sumVX += Math.Pow(radius[i] - _tildaR, rank);
                 }
               }
               g[kk++] = sumX - sumVX;
@@ -530,7 +467,7 @@ namespace hs071_cs
                 {
                   if (gr == _groupNumber[i])
                   {
-                    values[kk++] = rank * Math.Pow(x[2 * count + i], rank - 1);
+                    values[kk++] = rank * Math.Pow(x[2 * count + i]-_tildaR, rank - 1);
                   }
                 }
               }
@@ -552,9 +489,91 @@ namespace hs071_cs
 
     public override string ToString()
     {
-      return "OptimalPoints4";
+      return "OptimalPoints4 - DynameicR";
     }
 
+    /// <summary>
+    /// Сумма диаметров всех кругов
+    /// </summary>
+    /// <param name="radius"></param>
+    /// <returns></returns>
+    public double DiametrSum(double[] radius)
+    {
+      var sum = 0.0;
+      foreach (var rad in radius)
+      {
+        sum += 2 * rad;
+      }
+      return sum;
+    }
+
+    /// <summary>
+    /// Присвоение начальных значений с шагом по ОХ = 20, У = -+ 0.2
+    /// </summary>
+    /// <param name="r">Радиусы</param>
+    /// <returns></returns>
+    public double[] FirstValue(double[] r)
+    {
+      double[] x = new double[count * 3 + 1];
+      double l = 0;
+      double d = 0.2;
+      for (int i = 0; i < count; ++i)
+      {
+        x[2 * i] = l + r[i];
+        l += 2 * r[i];
+        x[2 * i + 1] = d *= -1;
+        //x[2 * count + i] = r[i];
+        x[2 * count + i] = 20;
+      }
+      x[_n - 1] = l;
+      return x;
+    }
+
+    /// <summary>
+    /// Инициализация значений всего массива _х
+    /// </summary>
+    /// <param name="InitialValues">Начальные значения</param>
+    /// <returns>Вектор переменных</returns>
+    public double[] InitialValuesManually(double[] InitialValues)
+    {
+      double[] x = new double[count * 3 + 1];
+      for (int i = 0; i < count; ++i)
+      {
+        x[2 * i] = InitialValues[2 * i];
+        x[2 * i + 1] = InitialValues[2 * i + 1];
+        x[2 * count + i] = InitialValues[2 * count + i];
+      }
+      x[_n - 1] = InitialValues[_n - 1];
+      return x;
+    }
+    string DecToBase(int num_value, int base_value, int max_bit = 64)
+    {
+      var dec_base = 10;
+      var hexchars = new[] { 'A', 'B', 'C', 'D', 'E', 'F' };
+      var result = string.Empty;
+      var result_array = new int[max_bit];
+
+      for (/* nothing */; num_value > 0; num_value /= base_value)
+      {
+        int i = num_value % base_value;
+        result_array[--max_bit] = i;
+      }
+
+      for (int i = 0; i < result_array.Length; i++)
+      {
+        if (result_array[i] >= dec_base)
+        {
+          result += hexchars[(int)result_array[i] % dec_base].ToString();
+        }
+        else
+        {
+          result += result_array[i].ToString();
+        }
+      }
+
+      //result = result.TrimStart(new char[] {'0'});
+      return result;
+    }
   }
 }
 
